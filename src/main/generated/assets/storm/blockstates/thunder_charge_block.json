@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "storm:block/thunder_charge_block"
+    }
+  }
+}

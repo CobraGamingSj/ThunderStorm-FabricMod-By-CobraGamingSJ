@@ -1,4 +1,6 @@
 {
   "item.storm.thunder_charge": "Thunder Charge",
-  "item.storm.thunder_storm_spawn_egg": "Thunder Storm Spawn Egg"
+  "item.storm.thunder_storm_spawn_egg": "Thunder Storm Spawn Egg",
+  "entity.storm.thunder_storm": "§4Thunder Storm§r",
+  "block.storm.thunder_charge_block": "Thunder Charge Block"
 }

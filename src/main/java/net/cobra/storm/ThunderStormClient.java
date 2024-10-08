@@ -12,7 +12,7 @@ import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
 public class ThunderStormClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        EntityRendererRegistry.register(ModEntityType.THUNDER_PROJECTILE_ENTITY, FlyingItemEntityRenderer::new);
+        EntityRendererRegistry.register(ModEntityType.THUNDER_BOLT_ENTITY, FlyingItemEntityRenderer::new);
 
         EntityModelLayerRegistry.registerModelLayer(ModModelLayers.THUNDER_STORM, ThunderEntityModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntityType.THUNDER_ENTITY, ThunderStormRenderer::new);

@@ -1,3 +1,6 @@
-// 1.21.1	2024-09-15T15:51:31.9735727	ThunderStorm/Model Definitions
+// 1.21.1	2024-09-28T16:32:29.7056101	ThunderStorm/Model Definitions
 63ec6c618a3a23eab4cab9c52d7d3250de9b516e assets\storm\models\item\thunder_storm_spawn_egg.json
+30ad5874c42afa1102b5b92bd57025dc86656f72 assets\storm\models\block\thunder_charge_block.json
+5005564c17d556102d0ad3f4f9b08615454b334f assets\storm\models\item\thunder_charge_block.json
 fcaf684d4853427a7666144e62f5896e68b0cdb6 assets\storm\models\item\thunder_charge.json
+3c9b711e5c8b29b96634adb09c664f7e58acca73 assets\storm\blockstates\thunder_charge_block.json

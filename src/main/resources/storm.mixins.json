@@ -3,7 +3,8 @@
 	"package": "net.cobra.storm.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ExampleMixin"
+		"ExampleMixin",
+		"ThrownItemEntityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

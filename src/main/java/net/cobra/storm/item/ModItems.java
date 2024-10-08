@@ -10,8 +10,8 @@ import net.minecraft.util.Identifier;
 
 public class ModItems {
 
-    public static final Item THUNDER_CHARGE = register("thunder_charge", new ThunderChargeItem(new Item.Settings()));
-    public static final Item THUNDER_STORM_SPAWN_EGG = register("thunder_storm_spawn_egg", new SpawnEggItem(ModEntityType.THUNDER_ENTITY, 0x45, 0xe43, new Item.Settings()));
+    public static final Item THUNDER_BOLT = register("thunder_charge", new ThunderChargeItem(new Item.Settings()));
+    public static final Item THUNDER_STORM_SPAWN_EGG = register("thunder_storm_spawn_egg", new SpawnEggItem(ModEntityType.THUNDER_ENTITY, 5120881, 4063370, new Item.Settings()));
 
     private static Item register(String id, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(ThunderStorm.MOD_ID, id), item);

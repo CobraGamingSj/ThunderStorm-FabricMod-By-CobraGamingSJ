@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "blocks",
+  "pattern": [
+    "aaa",
+    "aba",
+    "aaa"
+  ],
+  "key": {
+    "a": {
+      "item": "minecraft:crying_obsidian"
+    },
+    "b": {
+      "item": "minecraft:copper_block"
+    }
+  },
+  "result": {
+    "id": "storm:thunder_charge_block"
+  },
+  "show_notification": true
+}

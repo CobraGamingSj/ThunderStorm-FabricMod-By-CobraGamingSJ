@@ -1,6 +1,9 @@
 package net.cobra.storm.entity;
 
 import com.google.common.collect.ImmutableList;
+import net.cobra.storm.entity.ai.SeekAndAttackGoal;
+import net.cobra.storm.entity.projectile.ThunderBoltEntity;
+import net.cobra.storm.item.ModItems;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.RangedAttackMob;
@@ -13,21 +16,25 @@ import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
+import net.minecraft.entity.boss.WitherEntity;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.BreezeEntity;
+import net.minecraft.entity.mob.FlyingEntity;
 import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
+import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.WindChargeEntity;
-import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.particle.EntityEffectParticleEffect;
 import net.minecraft.particle.ParticleTypes;
-import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.registry.tag.EntityTypeTags;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -47,25 +54,31 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.function.Predicate;
 
-public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, RangedAttackMob {
-    private static final TrackedData<Integer> TRACKED_ENTITY_ID_1 = DataTracker.registerData(ThunderEntity.class, TrackedDataHandlerRegistry.INTEGER);
-    private static final TrackedData<Integer> TRACKED_ENTITY_ID_2 = DataTracker.registerData(ThunderEntity.class, TrackedDataHandlerRegistry.INTEGER);
-    private static final TrackedData<Integer> TRACKED_ENTITY_ID_3 = DataTracker.registerData(ThunderEntity.class, TrackedDataHandlerRegistry.INTEGER);
+import static net.cobra.storm.registry.tag.ModBlockTags.THUNDER_STALKER_IMMUNE;
+
+public class ThunderStalkerEntity extends HostileEntity implements SkinOverlayOwner, RangedAttackMob {
+    private static final TrackedData<Integer> TRACKED_ENTITY_ID_1 = DataTracker.registerData(ThunderStalkerEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private static final TrackedData<Integer> TRACKED_ENTITY_ID_2 = DataTracker.registerData(ThunderStalkerEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private static final TrackedData<Integer> TRACKED_ENTITY_ID_3 = DataTracker.registerData(ThunderStalkerEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final List<TrackedData<Integer>> TRACKED_ENTITY_IDS = ImmutableList.of(TRACKED_ENTITY_ID_1, TRACKED_ENTITY_ID_2, TRACKED_ENTITY_ID_3);
-    private static final TrackedData<Integer> INVUL_TIMER = DataTracker.registerData(ThunderEntity.class, TrackedDataHandlerRegistry.INTEGER);
-    private static final int DEFAULT_INVUL_TIMER = 220;
+    private static final TrackedData<Integer> INVUL_TIMER = DataTracker.registerData(ThunderStalkerEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private final float[] sideHeadPitches = new float[2];
     private final float[] sideHeadYaws = new float[2];
     private final float[] prevSideHeadPitches = new float[2];
     private final float[] prevSideHeadYaws = new float[2];
-    private final int[] skullCooldowns = new int[2];
-    private final int[] chargedSkullCooldowns = new int[2];
+    private final int[] chargeCooldowns = new int[2];
+    private final int[] chargedThunderCooldowns = new int[2];
     private int blockBreakingCooldown;
-    private final ServerBossBar bossBar = (ServerBossBar)new ServerBossBar(this.getDisplayName(), BossBar.Color.RED, BossBar.Style.PROGRESS).setDarkenSky(true);
+    private final ServerBossBar bossBar = (ServerBossBar) new ServerBossBar(this.getDisplayName(), BossBar.Color.RED, BossBar.Style.PROGRESS).setDarkenSky(true);
     private static final Predicate<LivingEntity> CAN_ATTACK_PREDICATE = entity -> !entity.getType().isIn(EntityTypeTags.WITHER_FRIENDS) && entity.isMobOrPlayer();
     private static final TargetPredicate HEAD_TARGET_PREDICATE = TargetPredicate.createAttackable().setBaseMaxDistance(20.0).setPredicate(CAN_ATTACK_PREDICATE);
+    private static final ProjectileDeflection PROJECTILE_DEFLECTOR = (projectile, hitEntity, random) -> {
+        hitEntity.getWorld().playSoundFromEntity(null, hitEntity, SoundEvents.ENTITY_BREEZE_DEFLECT, hitEntity.getSoundCategory(), 1.0F, 1.0F);
+        ProjectileDeflection.SIMPLE.deflect(projectile, hitEntity, random);
+    };
+    private static final int LOOK_RADIUS = 100;
 
-    public ThunderEntity(EntityType<? extends ThunderEntity> entityType, World world) {
+    public ThunderStalkerEntity(EntityType<? extends ThunderStalkerEntity> entityType, World world) {
         super(entityType, world);
         this.moveControl = new FlightMoveControl(this, 10, false);
         this.setHealth(this.getMaxHealth());
@@ -81,14 +94,20 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
         return birdNavigation;
     }
 
+    public boolean isInLookRadius(LivingEntity entity) {
+        return this.squaredDistanceTo(entity) <= LOOK_RADIUS * LOOK_RADIUS;
+    }
+
     @Override
     protected void initGoals() {
-        this.goalSelector.add(2, new ProjectileAttackGoal(this, 1.0, 40, 20.0F));
-        this.goalSelector.add(5, new FlyGoal(this, 1.0));
-        this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+        this.goalSelector.add(9, new SeekAndAttackGoal(this, LOOK_RADIUS));
+        this.goalSelector.add(6, new ProjectileAttackGoal(this, 1.0, 40, 20.0F));
+        this.goalSelector.add(4, new FlyGoal(this, 1.0));
+        this.goalSelector.add(7, new LookAtEntityGoal(this, LivingEntity.class, 8.0F));
         this.goalSelector.add(7, new LookAroundGoal(this));
-        this.targetSelector.add(1, new RevengeGoal(this));
-        this.targetSelector.add(2, new ActiveTargetGoal(this, LivingEntity.class, 0, false, false, CAN_ATTACK_PREDICATE));
+        this.targetSelector.add(5, new RevengeGoal(this));
+        this.targetSelector.add(9, new ActiveTargetGoal(this, AnimalEntity.class, 0, false, false, CAN_ATTACK_PREDICATE));
+        this.targetSelector.add(9, new ActiveTargetGoal(this, LivingEntity.class, 0, false, false, CAN_ATTACK_PREDICATE));
     }
 
     @Override
@@ -98,6 +117,10 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
         builder.add(TRACKED_ENTITY_ID_2, 0);
         builder.add(TRACKED_ENTITY_ID_3, 0);
         builder.add(INVUL_TIMER, 0);
+    }
+
+    public double getChargeY() {
+        return this.getEyeY() - 0.4;
     }
 
     @Override
@@ -123,7 +146,7 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
 
     @Override
     protected SoundEvent getAmbientSound() {
-        return SoundEvents.ENTITY_WITHER_AMBIENT;
+        return SoundEvents.ENTITY_BLAZE_AMBIENT;
     }
 
     @Override
@@ -133,7 +156,7 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.ENTITY_WITHER_DEATH;
+        return SoundEvents.ENTITY_BREEZE_DEATH;
     }
 
     @Override
@@ -159,7 +182,7 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
 
         this.setVelocity(vec3d);
         if (vec3d.horizontalLengthSquared() > 0.05) {
-            this.setYaw((float)MathHelper.atan2(vec3d.z, vec3d.x) * (180.0F / (float)Math.PI) - 90.0F);
+            this.setYaw((float) MathHelper.atan2(vec3d.z, vec3d.x) * (180.0F / (float) Math.PI) - 90.0F);
         }
 
         super.tickMovement();
@@ -184,8 +207,8 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
                 double k = entity2.getEyeY() - f;
                 double l = entity2.getZ() - g;
                 double m = Math.sqrt(h * h + l * l);
-                float n = (float)(MathHelper.atan2(l, h) * 180.0F / (float)Math.PI) - 90.0F;
-                float o = (float)(-(MathHelper.atan2(k, m) * 180.0F / (float)Math.PI));
+                float n = (float) (MathHelper.atan2(l, h) * 180.0F / (float) Math.PI) - 90.0F;
+                float o = (float) (-(MathHelper.atan2(k, m) * 180.0F / (float) Math.PI));
                 this.sideHeadPitches[i] = this.getNextAngle(this.sideHeadPitches[i], o, 40.0F);
                 this.sideHeadYaws[i] = this.getNextAngle(this.sideHeadYaws[i], n, 10.0F);
             } else {
@@ -203,9 +226,9 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
             this.getWorld()
                     .addParticle(
                             ParticleTypes.SMOKE,
-                            p + this.random.nextGaussian() * (double)s,
-                            q + this.random.nextGaussian() * (double)s,
-                            r + this.random.nextGaussian() * (double)s,
+                            p + this.random.nextGaussian() * (double) s,
+                            q + this.random.nextGaussian() * (double) s,
+                            r + this.random.nextGaussian() * (double) s,
                             0.0,
                             0.0,
                             0.0
@@ -214,9 +237,9 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
                 this.getWorld()
                         .addParticle(
                                 EntityEffectParticleEffect.create(ParticleTypes.ENTITY_EFFECT, 0.7F, 0.7F, 0.5F),
-                                p + this.random.nextGaussian() * (double)s,
-                                q + this.random.nextGaussian() * (double)s,
-                                r + this.random.nextGaussian() * (double)s,
+                                p + this.random.nextGaussian() * (double) s,
+                                q + this.random.nextGaussian() * (double) s,
+                                r + this.random.nextGaussian() * (double) s,
                                 0.0,
                                 0.0,
                                 0.0
@@ -232,7 +255,7 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
                         .addParticle(
                                 EntityEffectParticleEffect.create(ParticleTypes.ENTITY_EFFECT, 0.7F, 0.7F, 0.9F),
                                 this.getX() + this.random.nextGaussian(),
-                                this.getY() + (double)(this.random.nextFloat() * t),
+                                this.getY() + (double) (this.random.nextFloat() * t),
                                 this.getZ() + this.random.nextGaussian(),
                                 0.0,
                                 0.0,
@@ -244,11 +267,12 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
 
     @Override
     protected void mobTick() {
+
         if (this.getInvulnerableTimer() > 0) {
             int i = this.getInvulnerableTimer() - 1;
-            this.bossBar.setPercent(1.0F - (float)i / 220.0F);
+            this.bossBar.setPercent(1.0F - (float) i / 220.0f);
             if (i <= 0) {
-                this.getWorld().createExplosion(this, this.getX(), this.getEyeY(), this.getZ(), 7.0F, false, World.ExplosionSourceType.MOB);
+                this.getWorld().createExplosion(this, this.getX(), this.getEyeY(), this.getZ(), 10.0F, false, World.ExplosionSourceType.TNT);
                 if (!this.isSilent()) {
                     this.getWorld().syncGlobalEvent(WorldEvents.WITHER_SPAWNS, this.getBlockPos(), 0);
                 }
@@ -262,33 +286,33 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
             super.mobTick();
 
             for (int ix = 1; ix < 3; ix++) {
-                if (this.age >= this.skullCooldowns[ix - 1]) {
-                    this.skullCooldowns[ix - 1] = this.age + 10 + this.random.nextInt(10);
+                if (this.age >= this.chargeCooldowns[ix - 1]) {
+                    this.chargeCooldowns[ix - 1] = this.age + 10 + this.random.nextInt(10);
                     if ((this.getWorld().getDifficulty() == Difficulty.NORMAL || this.getWorld().getDifficulty() == Difficulty.HARD)
-                            && this.chargedSkullCooldowns[ix - 1]++ > 15) {
+                            && this.chargedThunderCooldowns[ix - 1]++ > 15) {
                         float f = 10.0F;
                         float g = 5.0F;
                         double d = MathHelper.nextDouble(this.random, this.getX() - 10.0, this.getX() + 10.0);
                         double e = MathHelper.nextDouble(this.random, this.getY() - 5.0, this.getY() + 5.0);
                         double h = MathHelper.nextDouble(this.random, this.getZ() - 10.0, this.getZ() + 10.0);
-                        this.shootSkullAt(ix + 1, d, e, h, true);
-                        this.chargedSkullCooldowns[ix - 1] = 0;
+                        this.shootThunderChargeAt(ix + 1, d, e, h, true);
+                        this.chargedThunderCooldowns[ix - 1] = 0;
                     }
 
                     int j = this.getTrackedEntityId(ix);
                     if (j > 0) {
-                        LivingEntity livingEntity = (LivingEntity)this.getWorld().getEntityById(j);
+                        LivingEntity livingEntity = (LivingEntity) this.getWorld().getEntityById(j);
                         if (livingEntity != null && this.canTarget(livingEntity) && !(this.squaredDistanceTo(livingEntity) > 900.0) && this.canSee(livingEntity)) {
-                            this.shootSkullAt(ix + 1, livingEntity);
-                            this.skullCooldowns[ix - 1] = this.age + 40 + this.random.nextInt(20);
-                            this.chargedSkullCooldowns[ix - 1] = 0;
+                            this.shootThunderChargeAt(ix + 1, livingEntity);
+                            this.chargeCooldowns[ix - 1] = this.age + 40 + this.random.nextInt(20);
+                            this.chargedThunderCooldowns[ix - 1] = 0;
                         } else {
                             this.setTrackedEntityId(ix, 0);
                         }
                     } else {
                         List<LivingEntity> list = this.getWorld().getTargets(LivingEntity.class, HEAD_TARGET_PREDICATE, this, this.getBoundingBox().expand(20.0, 8.0, 20.0));
                         if (!list.isEmpty()) {
-                            LivingEntity livingEntity2 = (LivingEntity)list.get(this.random.nextInt(list.size()));
+                            LivingEntity livingEntity2 = (LivingEntity) list.get(this.random.nextInt(list.size()));
                             this.setTrackedEntityId(ix, livingEntity2.getId());
                         }
                     }
@@ -324,7 +348,7 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
             }
 
             if (this.age % 20 == 0) {
-                this.heal(1.0F);
+                this.heal(1.5F);
             }
 
             this.bossBar.setPercent(this.getHealth() / this.getMaxHealth());
@@ -332,13 +356,7 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
     }
 
     public static boolean canDestroy(BlockState block) {
-        return !block.isAir() && !block.isIn(BlockTags.WITHER_IMMUNE);
-    }
-
-    public void onSummoned() {
-        this.setInvulTimer(220);
-        this.bossBar.setPercent(0.0F);
-        this.setHealth(this.getMaxHealth() / 3.0F);
+        return !block.isAir() && !block.isIn(THUNDER_STALKER_IMMUNE);
     }
 
     @Override
@@ -361,24 +379,24 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
         if (headIndex <= 0) {
             return this.getX();
         } else {
-            float f = (this.bodyYaw + (float)(180 * (headIndex - 1))) * (float) (Math.PI / 180.0);
+            float f = (this.bodyYaw + (float) (180 * (headIndex - 1))) * (float) (Math.PI / 180.0);
             float g = MathHelper.cos(f);
-            return this.getX() + (double)g * 1.3 * (double)this.getScale();
+            return this.getX() + (double) g * 1.3 * (double) this.getScale();
         }
     }
 
     private double getHeadY(int headIndex) {
         float f = headIndex <= 0 ? 3.0F : 2.2F;
-        return this.getY() + (double)(f * this.getScale());
+        return this.getY() + (double) (f * this.getScale());
     }
 
     private double getHeadZ(int headIndex) {
         if (headIndex <= 0) {
             return this.getZ();
         } else {
-            float f = (this.bodyYaw + (float)(180 * (headIndex - 1))) * (float) (Math.PI / 180.0);
+            float f = (this.bodyYaw + (float) (180 * (headIndex - 1))) * (float) (Math.PI / 180.0);
             float g = MathHelper.sin(f);
-            return this.getZ() + (double)g * 1.3 * (double)this.getScale();
+            return this.getZ() + (double) g * 1.3 * (double) this.getScale();
         }
     }
 
@@ -395,13 +413,13 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
         return prevAngle + f;
     }
 
-    private void shootSkullAt(int headIndex, LivingEntity target) {
-        this.shootSkullAt(
-                headIndex, target.getX(), target.getY() + (double)target.getStandingEyeHeight() * 0.5, target.getZ(), headIndex == 0 && this.random.nextFloat() < 0.001F
+    private void shootThunderChargeAt(int headIndex, LivingEntity target) {
+        this.shootThunderChargeAt(
+                headIndex, target.getX(), target.getY() + (double) target.getStandingEyeHeight() * 0.5, target.getZ(), headIndex == 0 && this.random.nextFloat() < 0.001F
         );
     }
 
-    private void shootSkullAt(int headIndex, double targetX, double targetY, double targetZ, boolean charged) {
+    private void shootThunderChargeAt(int headIndex, double targetX, double targetY, double targetZ, boolean charged) {
         if (!this.isSilent()) {
             this.getWorld().syncWorldEvent(null, WorldEvents.WITHER_SHOOTS, this.getBlockPos(), 0);
         }
@@ -413,7 +431,7 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
         double h = targetY - e;
         double i = targetZ - f;
         Vec3d vec3d = new Vec3d(g, h, i);
-        ThunderChargeProjectileEntity thunderChargeEntity = new ThunderChargeProjectileEntity(this, this.getWorld());
+        ThunderBoltEntity thunderChargeEntity = new ThunderBoltEntity(this, this.getWorld());
         thunderChargeEntity.setOwner(this);
         if (charged) {
             thunderChargeEntity.setCharged(true);
@@ -425,21 +443,26 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
 
     @Override
     public void shootAt(LivingEntity target, float pullProgress) {
-        this.shootSkullAt(0, target);
+        this.shootThunderChargeAt(0, target);
     }
 
     @Override
     public boolean damage(DamageSource source, float amount) {
+
+        if (source.getSource() instanceof TntEntity || source.getSource() instanceof LightningEntity) {
+            return false;
+        }
+
         if (this.isInvulnerableTo(source)) {
             return false;
-        } else if (source.isIn(DamageTypeTags.WITHER_IMMUNE_TO) || source.getAttacker() instanceof ThunderEntity) {
+        } else if (source.isIn(DamageTypeTags.WITHER_IMMUNE_TO) || source.getAttacker() instanceof ThunderStalkerEntity) {
             return false;
         } else if (this.getInvulnerableTimer() > 0 && !source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
             return false;
         } else {
             if (this.shouldRenderOverlay()) {
                 Entity entity = source.getSource();
-                if (entity instanceof PersistentProjectileEntity || entity instanceof WindChargeEntity) {
+                if (entity instanceof PersistentProjectileEntity || entity instanceof WindChargeEntity || entity instanceof ThunderBoltEntity) {
                     return false;
                 }
             }
@@ -452,8 +475,8 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
                     this.blockBreakingCooldown = 20;
                 }
 
-                for (int i = 0; i < this.chargedSkullCooldowns.length; i++) {
-                    this.chargedSkullCooldowns[i] = this.chargedSkullCooldowns[i] + 3;
+                for (int i = 0; i < this.chargedThunderCooldowns.length; i++) {
+                    this.chargedThunderCooldowns[i] = this.chargedThunderCooldowns[i] + 3;
                 }
 
                 return super.damage(source, amount);
@@ -462,9 +485,18 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
     }
 
     @Override
+    public ProjectileDeflection getProjectileDeflection(ProjectileEntity projectile) {
+        if (projectile.getType() != EntityType.BREEZE_WIND_CHARGE && projectile.getType() != EntityType.WIND_CHARGE && projectile.getType() != ModEntityType.THUNDER_BOLT_ENTITY && projectile.getType() != EntityType.WITHER_SKULL && projectile.getType() != EntityType.TRIDENT) {
+            return this.getType().isIn(EntityTypeTags.DEFLECTS_PROJECTILES) ? PROJECTILE_DEFLECTOR : ProjectileDeflection.NONE;
+        } else {
+            return ProjectileDeflection.NONE;
+        }
+    }
+
+    @Override
     protected void dropEquipment(ServerWorld world, DamageSource source, boolean causedByPlayer) {
         super.dropEquipment(world, source, causedByPlayer);
-        ItemEntity itemEntity = this.dropItem(Items.NETHER_STAR);
+        ItemEntity itemEntity = this.dropItem(ModItems.THUNDER_BOLT);
         if (itemEntity != null) {
             itemEntity.setCovetedItem();
         }
@@ -481,16 +513,18 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
 
     @Override
     public boolean addStatusEffect(StatusEffectInstance effect, @Nullable Entity source) {
-        return false;
+        return super.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, Integer.MAX_VALUE, 1, false, false, false), source);
     }
 
     public static DefaultAttributeContainer.Builder createThunderStormAttributes() {
         return HostileEntity.createHostileAttributes()
-                .add(EntityAttributes.GENERIC_MAX_HEALTH, 300.0)
-                .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.6F)
-                .add(EntityAttributes.GENERIC_FLYING_SPEED, 0.6F)
-                .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 40.0)
-                .add(EntityAttributes.GENERIC_ARMOR, 4.0);
+                .add(EntityAttributes.GENERIC_MAX_HEALTH, 2000)
+                .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.3F)
+                .add(EntityAttributes.GENERIC_FLYING_SPEED, 0.3F)
+                .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 100.0)
+                .add(EntityAttributes.GENERIC_ARMOR_TOUGHNESS, 10)
+                .add(EntityAttributes.GENERIC_ARMOR, 12.0)
+                .add(EntityAttributes.GENERIC_SCALE, 5.0);
     }
 
     public float getHeadYaw(int headIndex) {
@@ -509,12 +543,17 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
         this.dataTracker.set(INVUL_TIMER, ticks);
     }
 
+    @Override
+    public boolean isInvulnerableTo(DamageSource damageSource) {
+        return damageSource.getAttacker() instanceof BreezeEntity || damageSource.getAttacker() instanceof ThunderStalkerEntity || damageSource.getAttacker() instanceof WitherEntity || super.isInvulnerableTo(damageSource);
+    }
+
     public int getTrackedEntityId(int headIndex) {
-        return this.dataTracker.<Integer>get((TrackedData<Integer>)TRACKED_ENTITY_IDS.get(headIndex));
+        return this.dataTracker.<Integer>get((TrackedData<Integer>) TRACKED_ENTITY_IDS.get(headIndex));
     }
 
     public void setTrackedEntityId(int headIndex, int id) {
-        this.dataTracker.set((TrackedData<Integer>)TRACKED_ENTITY_IDS.get(headIndex), id);
+        this.dataTracker.set((TrackedData<Integer>) TRACKED_ENTITY_IDS.get(headIndex), id);
     }
 
     @Override
@@ -534,6 +573,6 @@ public class ThunderEntity extends HostileEntity implements SkinOverlayOwner, Ra
 
     @Override
     public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-        return effect.equals(StatusEffects.WITHER) ? false : super.canHaveStatusEffect(effect);
+        return effect.equals(StatusEffects.BLINDNESS) ? false : super.canHaveStatusEffect(effect);
     }
 }

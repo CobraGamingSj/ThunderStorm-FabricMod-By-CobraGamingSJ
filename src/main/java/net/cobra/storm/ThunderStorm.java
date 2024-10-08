@@ -1,7 +1,8 @@
 package net.cobra.storm;
 
+import net.cobra.storm.block.ModBlocks;
 import net.cobra.storm.entity.ModEntityType;
-import net.cobra.storm.entity.ThunderEntity;
+import net.cobra.storm.entity.ThunderStalkerEntity;
 import net.cobra.storm.item.ModItems;
 import net.fabricmc.api.ModInitializer;
 
@@ -19,14 +20,15 @@ public class ThunderStorm implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.COMBAT).register((entries) -> {
-			entries.addAfter(Items.WIND_CHARGE, ModItems.THUNDER_CHARGE);
+			entries.addAfter(Items.WIND_CHARGE, ModItems.THUNDER_BOLT);
 		});
 		ItemGroupEvents.modifyEntriesEvent(ItemGroups.SPAWN_EGGS).register((spawn_eggs) -> {
 			spawn_eggs.addAfter(Items.BLAZE_SPAWN_EGG, ModItems.THUNDER_STORM_SPAWN_EGG);
 		});
 
 		ModItems.register();
+		ModBlocks.register();
 		ModEntityType.register();
-		FabricDefaultAttributeRegistry.register(ModEntityType.THUNDER_ENTITY, ThunderEntity.createThunderStormAttributes());
+		FabricDefaultAttributeRegistry.register(ModEntityType.THUNDER_ENTITY, ThunderStalkerEntity.createThunderStormAttributes());
 	}
 }
