@@ -60,7 +60,7 @@ public class ThunderChargeItem extends Item implements ProjectileItem {
                 .power(1.0F)
                 .overrideDispenseEvent(1051)
                 .build();
-    }
+}
 
     @Override
     public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {

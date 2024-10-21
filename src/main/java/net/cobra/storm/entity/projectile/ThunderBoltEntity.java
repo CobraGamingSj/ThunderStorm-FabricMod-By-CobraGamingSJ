@@ -94,14 +94,9 @@ public class ThunderBoltEntity extends ThrownItemEntity {
         super.onCollision(hitResult);
         if (!this.getWorld().isClient) {
             this.getWorld().createExplosion(this, this.getX(), this.getY(), this.getZ(), 1.0F, false, World.ExplosionSourceType.TNT);
-            this.getWorld().createExplosion(this, this.getX(), this.getY(), this.getZ(), 1.0F, false, World.ExplosionSourceType.TRIGGER);
             LightningEntity lightningEntity = new LightningEntity(EntityType.LIGHTNING_BOLT, this.getWorld());
-            TntEntity tnt = new TntEntity(EntityType.TNT, this.getWorld());
             lightningEntity.refreshPositionAfterTeleport(this.getX(), this.getY(), this.getZ());
-            tnt.refreshPositionAfterTeleport(this.getX(), this.getY(), this.getZ());
-            tnt.setFuse(0);
             this.getWorld().spawnEntity(lightningEntity);
-            this.getWorld().spawnEntity(tnt);
             this.discard();
         }
     }

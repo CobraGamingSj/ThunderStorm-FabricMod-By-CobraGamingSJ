@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "storm:block/purple_heart_log_horizontal",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "storm:block/purple_heart_log"
+    },
+    "axis=z": {
+      "model": "storm:block/purple_heart_log_horizontal",
+      "x": 90
+    }
+  }
+}

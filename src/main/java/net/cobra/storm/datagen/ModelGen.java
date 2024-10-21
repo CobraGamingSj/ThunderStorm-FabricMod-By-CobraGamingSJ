@@ -20,6 +20,9 @@ public class ModelGen extends FabricModelProvider {
     @Override
     public void generateBlockStateModels(BlockStateModelGenerator blockStateModelGenerator) {
         blockStateModelGenerator.registerSimpleCubeAll(ModBlocks.THUNDER_CHARGE_BLOCK);
+        blockStateModelGenerator.registerLog(ModBlocks.PURPLE_HEART_LOG).log(ModBlocks.PURPLE_HEART_LOG).wood(ModBlocks.PURPLE_HEART_WOOD);
+        blockStateModelGenerator.registerSimpleCubeAll(ModBlocks.PURPLE_HEART_LEAVES);
+        blockStateModelGenerator.registerTintableCross(ModBlocks.PURPLE_HEART_SAPLING, BlockStateModelGenerator.TintType.NOT_TINTED);
     }
 
     @Override

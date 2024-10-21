@@ -1,6 +1,9 @@
 {
   "item.storm.thunder_charge": "Thunder Charge",
   "item.storm.thunder_storm_spawn_egg": "Thunder Storm Spawn Egg",
+  "item.storm.purple_heart_sapling": "Purple Heart Sapling",
   "entity.storm.thunder_storm": "§4Thunder Storm§r",
-  "block.storm.thunder_charge_block": "Thunder Charge Block"
+  "block.storm.purple_heart_log": "Purple Heart Log",
+  "block.storm.purple_heart_wood": "Purple Heart Wood",
+  "block.storm.purple_heart_leaves": "Purple Heart Leaves"
 }
