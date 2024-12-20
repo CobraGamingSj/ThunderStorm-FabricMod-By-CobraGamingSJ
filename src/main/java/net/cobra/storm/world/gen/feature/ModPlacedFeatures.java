@@ -7,6 +7,7 @@ public class ModPlacedFeatures {
 
     public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
         ModTreePlacedFeatures.bootstrap(featureRegisterable);
+        ModVegetationPlacedFeatures.bootstrap(featureRegisterable);
     }
 
 }

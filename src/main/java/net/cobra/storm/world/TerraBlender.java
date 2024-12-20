@@ -6,7 +6,7 @@ import terrablender.api.RegionType;
 import terrablender.api.Regions;
 import terrablender.api.TerraBlenderApi;
 
-public class Terrablender implements TerraBlenderApi {
+public class TerraBlender implements TerraBlenderApi {
     @Override
     public void onTerraBlenderInitialized() {
         Regions.register(new ModOverworldRegion(Identifier.of(ThunderStorm.MOD_ID, "overworld"), RegionType.OVERWORLD, 4));

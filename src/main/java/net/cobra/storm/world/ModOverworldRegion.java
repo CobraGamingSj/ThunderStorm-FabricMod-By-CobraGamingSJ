@@ -8,14 +8,10 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.BiomeKeys;
 import net.minecraft.world.biome.source.util.MultiNoiseUtil;
-import terrablender.api.ParameterUtils;
 import terrablender.api.Region;
 import terrablender.api.RegionType;
-import terrablender.api.VanillaParameterOverlayBuilder;
 
 import java.util.function.Consumer;
-
-import static terrablender.api.ParameterUtils.Erosion.EROSION_1;
 
 public class ModOverworldRegion extends Region {
     public ModOverworldRegion(Identifier name, RegionType type, int weight) {
@@ -25,7 +21,7 @@ public class ModOverworldRegion extends Region {
     @Override
     public void addBiomes(Registry<Biome> registry, Consumer<Pair<MultiNoiseUtil.NoiseHypercube, RegistryKey<Biome>>> mapper) {
         this.addModifiedVanillaOverworldBiomes(mapper, modifiedVanillaOverworldBuilder -> {
-            modifiedVanillaOverworldBuilder.replaceBiome(BiomeKeys.PLAINS, ModBiomeKeys.BARRENLANDS);
+            modifiedVanillaOverworldBuilder.replaceBiome(BiomeKeys.PLAINS, ModBiomeKeys.PURPLE_HEART_FOREST);
         });
     }
 }
